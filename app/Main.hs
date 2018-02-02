@@ -20,7 +20,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 
 -- Cabal
-import Data.Csv
+import qualified Data.Csv as CSV
 import Options.Generic
 import TextShow
 import qualified Data.ByteString.Char8 as B
@@ -63,7 +63,7 @@ main = do
             StatusCol . fromMaybe "status" . unHelpful . statusCol $ opts
         valueCol'  = ValueCol . fromMaybe "value" . unHelpful . valueCol $ opts
         rows = either error snd
-             $ (decodeByName contents :: Either String (Header, V.Vector (Map.Map T.Text T.Text)))
+             $ (CSV.decodeByName contents :: Either String (CSV.Header, V.Vector (Map.Map T.Text T.Text)))
         entities = fmap (toEntity nameCol' statusCol' valueCol') rows
         nameMap  = getNameMap entities
 
@@ -90,6 +90,6 @@ main = do
                        )
                      )
                          $ outputMaps
-        H.io . BL.putStrLn . encodeByName outputHeader $ outputBody
+        H.io . BL.putStrLn . CSV.encodeByName outputHeader $ outputBody
 
     return ()

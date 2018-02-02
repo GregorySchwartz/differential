@@ -16,11 +16,13 @@ module Differential
 
 -- Standard
 import Control.Monad
+import Data.Int (Int32 (..))
 import Data.List
 import Data.Semigroup
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
+import qualified Data.Text as T
 
 -- Cabal
 
@@ -30,6 +32,7 @@ import Language.R.QQ
 
 -- Local
 import Types
+import Utility
 
 -- | Get unique pairings of a list. From
 -- http://stackoverflow.com/questions/34044366/how-to-extract-all-unique-pairs-of-a-list-in-haskell
@@ -73,3 +76,33 @@ getDifferentials (NameMap nameMap) =
                                 . getNameDifferentials
                          )
         $ nameMap
+
+-- | Get edgeR differential expression from a two dimensional matrix.
+edgeR :: Int -> TwoDMat -> R s String
+edgeR topN mat = do
+    let ss     = fmap (T.unpack . unStatus) . _colStatus $ mat
+        topN32 = fromIntegral topN :: Int32
+
+    rMat <- fmap unRMat $ twoDMatToRMat mat
+
+    res <- [r| library(edgeR)
+
+               group = factor(ss_hs)
+               y = DGEList(counts = rMat_hs, group = group)
+               # Keep genes with at least 1 count per million (cpm) in at least two samples.
+               countsPerMillion = cpm(y)
+               countCheck = countsPerMillion > 1
+               keep = which(rowSums(countCheck) >= 2)
+               y = y[keep,]
+               # Normalize
+               y = calcNormFactors(y)
+               design = model.matrix(~ group)
+               y = estimateDisp(y, design)
+               fit = glmFit(y, design)
+               lrt = glmLRT(fit, coef = 2)
+               res = topTags(lrt, n = topN32_hs)
+
+               return(res)
+           |]
+
+    return (R.fromSomeSEXP res :: String)
