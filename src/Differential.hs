@@ -12,17 +12,21 @@ each entity.
 
 module Differential
     ( getDifferentials
+    , edgeR
     ) where
 
 -- Standard
-import Control.Monad
-import Data.Int (Int32 (..))
+import Data.Int (Int32)
 import Data.List
 import Data.Semigroup
+import qualified Control.Lens as L
+import qualified Data.Aeson.Lens as L
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
+import qualified Data.Scientific as Scientific
 import qualified Data.Sequence as Seq
 import qualified Data.Text as T
+import qualified H.Prelude as H
 
 -- Cabal
 
@@ -78,31 +82,51 @@ getDifferentials (NameMap nameMap) =
         $ nameMap
 
 -- | Get edgeR differential expression from a two dimensional matrix.
-edgeR :: Int -> TwoDMat -> R s String
+edgeR :: Int -> TwoDMat -> R s [(Name, Double, PValue, FDR)]
 edgeR topN mat = do
     let ss     = fmap (T.unpack . unStatus) . _colStatus $ mat
         topN32 = fromIntegral topN :: Int32
 
     rMat <- fmap unRMat $ twoDMatToRMat mat
 
-    res <- [r| library(edgeR)
+    resR <- [r| library(edgeR)
 
-               group = factor(ss_hs)
-               y = DGEList(counts = rMat_hs, group = group)
-               # Keep genes with at least 1 count per million (cpm) in at least two samples.
-               countsPerMillion = cpm(y)
-               countCheck = countsPerMillion > 1
-               keep = which(rowSums(countCheck) >= 2)
-               y = y[keep,]
-               # Normalize
-               y = calcNormFactors(y)
-               design = model.matrix(~ group)
-               y = estimateDisp(y, design)
-               fit = glmFit(y, design)
-               lrt = glmLRT(fit, coef = 2)
-               res = topTags(lrt, n = topN32_hs)
+                group = factor(ss_hs)
+                y = DGEList(counts = rMat_hs, group = group)
+                # Keep genes with at least 1 count per million (cpm) in at least two samples.
+                countsPerMillion = cpm(y)
+                countCheck = countsPerMillion > 1
+                keep = which(rowSums(countCheck) >= 2)
+                y = y[keep,]
+                # Normalize
+                y = calcNormFactors(y)
+                design = model.matrix(~ group)
+                y = estimateDisp(y, design)
+                fit = glmFit(y, design)
+                lrt = glmLRT(fit, coef = 2)
+                res = topTags(lrt, n = topN32_hs)$table
 
-               return(res)
+                # return(jsonlite::toJSON(res))
+                return(res)
            |]
 
-    return (R.fromSomeSEXP res :: String)
+    -- let df = R.fromSomeSEXP resR :: String
+    --     genes = fmap Name $ df L.^.. L.values . L.key "_row" . L._String
+    --     vals  = fmap Scientific.toRealFloat
+    --           $ df L.^.. L.values . L.key "logFC" . L._Number
+    --     pVals = fmap (PValue . Scientific.toRealFloat)
+    --           $ df L.^.. L.values . L.key "PValue" . L._Number
+    --     fdrs  = fmap (FDR . Scientific.toRealFloat)
+    --           $ df L.^.. L.values . L.key "FDR" . L._Number
+
+    genesR <- [r| row.names(resR_hs) |]
+    valsR  <- [r| resR_hs$logFC |]
+    pValsR <- [r| resR_hs$PValue |]
+    fdrsR  <- [r| resR_hs$FDR |]
+
+    let genes = fmap (Name . T.pack) (R.dynSEXP genesR :: [String])
+        vals  = R.dynSEXP valsR :: [Double]
+        pVals = fmap PValue (R.dynSEXP pValsR :: [Double])
+        fdrs  = fmap FDR (R.dynSEXP fdrsR :: [Double])
+
+    return . zip4 genes vals pVals $ fdrs

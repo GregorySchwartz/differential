@@ -23,12 +23,21 @@ import qualified Data.Text as T
 
 
 -- Basic
-newtype NameCol    = NameCol { unNameCol :: T.Text }
+newtype NameCol = NameCol
+    { unNameCol :: T.Text
+    } deriving (Eq,Ord,Read,Show)
 newtype StatusCol  = StatusCol T.Text
 newtype ValueCol   = ValueCol T.Text
-newtype PValue     = PValue { unPValue :: Double } deriving (Eq, Ord)
-newtype Name       = Name { unName :: T.Text } deriving (Eq, Ord)
-newtype Status     = Status { unStatus :: T.Text } deriving (Eq, Ord)
+newtype PValue = PValue
+    { unPValue :: Double
+    } deriving (Eq,Ord,Read,Show)
+newtype FDR = FDR
+    { unFDR :: Double
+    } deriving (Eq,Ord,Read,Show)
+newtype Name       = Name { unName :: T.Text } deriving (Eq, Ord, Read, Show)
+newtype Status = Status
+    { unStatus :: T.Text
+    } deriving (Eq,Ord,Read,Show)
 newtype Comparison = Comparison { unComparison :: T.Text } deriving (Eq, Ord)
 newtype NameMap    = NameMap (Map.Map Name (Map.Map Status (Seq.Seq Double)))
 newtype RMat s     = RMat { unRMat :: R.SomeSEXP s }
@@ -42,6 +51,8 @@ data Entity = Entity { _name   :: Name
 data TwoDMat = TwoDMat { _rowNames  :: [Name]
                        , _colNames  :: [Name]
                        , _colStatus :: [Status]
+                       , _numRows   :: Int
+                       , _numCols   :: Int
                        , _matrix    :: [(Int, Int, Double)]
                        }
 

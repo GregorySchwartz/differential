@@ -18,11 +18,14 @@ library
   exposed-modules:     Types
                      , Load
                      , Differential
+                     , Plot
                      , Utility
   build-depends:       base >= 4.7 && < 5
                      , containers
                      , inline-r
                      , lens
+                     , lens-aeson
+                     , scientific
                      , text
                      , vector
   ghc-options:         -O2
