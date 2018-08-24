@@ -21,11 +21,17 @@ library
                      , Plot
                      , Utility
   build-depends:       base >= 4.7 && < 5
+                     , aeson
+                     , bytestring
                      , containers
+                     , deepseq
+                     , foldl
                      , inline-r
                      , lens
                      , lens-aeson
                      , scientific
+                     , sparse-linear-algebra
+                     , statistics
                      , text
                      , vector
   ghc-options:         -O2

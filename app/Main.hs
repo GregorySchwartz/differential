@@ -27,7 +27,7 @@ import qualified Data.ByteString.Char8 as B
 import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text as T
 import qualified Data.Vector as V
-       
+
 import qualified H.Prelude as H
 import qualified Foreign.R as R
 import Language.R.Instance as R

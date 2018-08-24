@@ -12,31 +12,38 @@ each entity.
 
 module Differential
     ( getDifferentials
+    , differentialMatrixObsRow
+    , differentialMatrixFeatRow
+    , getDifferential
     , edgeR
     ) where
 
 -- Standard
-import Data.Int (Int32)
-import Data.List
-import Data.Semigroup
+import           Data.Int (Int32)
+import           Data.List
+import           Data.Semigroup
+import qualified Control.Foldl as Fold
 import qualified Control.Lens as L
 import qualified Data.Aeson.Lens as L
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
 import qualified Data.Scientific as Scientific
 import qualified Data.Sequence as Seq
+import qualified Data.Sparse.Common as S
 import qualified Data.Text as T
+import qualified Data.Vector.Unboxed as V
 import qualified H.Prelude as H
 
 -- Cabal
 
-import Language.R.Instance as R
-import Language.R.Literal as R
-import Language.R.QQ
+import           Language.R as R
+import           Language.R.Instance as R
+import           Language.R.Literal as R
+import           Language.R.QQ
 
 -- Local
-import Types
-import Utility
+import           Types
+import           Utility
 
 -- | Get unique pairings of a list. From
 -- http://stackoverflow.com/questions/34044366/how-to-extract-all-unique-pairs-of-a-list-in-haskell
@@ -48,17 +55,24 @@ differential :: [Double] -> [Double] -> R s PValue
 differential xs ys = [r| suppressWarnings(wilcox.test(xs_hs, ys_hs))$p.value |]
                  >>= (\x -> return . PValue $ ((R.fromSomeSEXP x) :: Double))
 
+-- | For two lists, xs and ys, find the log2 fold change as mean ys / mean xs.
+getLog2Diff :: [Double] -> [Double] -> Log2Diff
+getLog2Diff xs ys = Log2Diff . logBase 2 $ getMean ys / getMean xs
+  where
+    getMean = Fold.fold Fold.mean
+
 -- | Get a comparison.
-getDifferential :: Status -> Status -> [Double] -> [Double] -> R s (Comparison, PValue)
+getDifferential :: Status -> Status -> [Double] -> [Double] -> R s (Comparison, Log2Diff, PValue)
 getDifferential (Status !s1) (Status !s2) !l1 !l2 = do
     pVal <- differential l1 l2
-    return (Comparison (s1 <> "/" <> s2), pVal)
+    return (Comparison (s2 <> "/" <> s1), getLog2Diff l1 l2, pVal)
 
 -- | Get all comparisons of a Name.
 getNameDifferentials :: Map.Map Status (Seq.Seq Double) -> R s ComparisonMap
 getNameDifferentials m = do
     let comparisons = pairs . Map.keys $ m
-        comp (!s1, !s2) = getDifferential
+        comp (!s1, !s2) = fmap (\(x, _, z) -> (x, z))
+                        $ getDifferential
                             s1
                             s2
                             (F.toList . (Map.!) m $ s1)
@@ -80,6 +94,31 @@ getDifferentials (NameMap nameMap) =
                                 . getNameDifferentials
                          )
         $ nameMap
+
+-- | Get differentials between columns (features) of select rows (observations)
+-- of bs / as, where as and bs are lists of row indices.
+differentialMatrixObsRow :: [Int] -- ^ as
+                         -> [Int] -- ^ bs
+                         -> S.SpMatrix Double
+                         -> IO [(Log2Diff, PValue)]
+differentialMatrixObsRow as bs = differentialMatrixFeatRow as bs . S.transpose
+
+-- | Get differentials between columns (observations) of select rows (features)
+-- of bs / as, where as and bs are lists of row indices.
+differentialMatrixFeatRow :: [Int] -- ^ as
+                          -> [Int] -- ^ bs
+                          -> S.SpMatrix Double
+                          -> IO [(Log2Diff, PValue)]
+differentialMatrixFeatRow as bs = mapM obsToDiff . S.toRowsL
+  where
+    obsToDiff vec = R.runRegion
+                  $ fmap (\(_, l, p) -> (l, p))
+                  . getDifferential
+                      (Status "A")
+                      (Status "B")
+                      (obsToVals vec as)
+                  $   (obsToVals vec bs)
+    obsToVals features = fmap (flip S.lookupDenseSV features)
 
 -- | Get edgeR differential expression from a two dimensional matrix.
 edgeR :: Int -> TwoDMat -> R s [(Name, Double, PValue, FDR)]
