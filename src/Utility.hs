@@ -5,15 +5,19 @@ Collects the miscellaneous functions of the program.
 -}
 
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Utility
     ( twoDMatToRMat
+    , getFDR
     ) where
 
 -- Standard
 
 -- Cabal
 
+import Data.Function (on)
+import Data.List (sortBy, genericLength)
 import Data.Int (Int32)
 import Language.R.Instance as R
 import Language.R.Literal as R
@@ -58,3 +62,16 @@ twoDMatToRMat mat = do
 -- | Convert an Int to and Int32.
 toInt32 :: Int -> Int32
 toInt32 x = fromIntegral x :: Int32
+
+-- | Convert p-values to FDR using the Benjamini-Hochberg procedure.
+getFDR :: Double -> [PValue] -> [FDR]
+getFDR alpha xs = fmap snd
+                . sortBy (compare `on` fst)
+                . fmap (\(!r, (!o, _)) -> (o, getFDR r))
+                . zip [1..]
+                . sortBy (compare `on` snd)
+                . zip [1..]
+                $ xs
+  where
+    m = genericLength xs
+    getFDR rank = FDR $ alpha * (rank / m)

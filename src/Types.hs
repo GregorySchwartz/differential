@@ -39,7 +39,7 @@ newtype Log2Diff = Log2Diff
     } deriving (Eq,Ord,Read,Show,Generic)
 newtype FDR = FDR
     { unFDR :: Double
-    } deriving (Eq,Ord,Read,Show)
+    } deriving (Eq,Ord,Read,Show,Generic)
 newtype Name       = Name { unName :: T.Text } deriving (Eq, Ord, Read, Show, A.ToJSON,Generic)
 newtype Status = Status
     { unStatus :: T.Text
@@ -50,6 +50,7 @@ newtype RMat s     = RMat { unRMat :: R.SomeSEXP s }
 
 instance NFData Log2Diff
 instance NFData PValue
+instance NFData FDR
 instance NFData Name
 
 -- Advanced
@@ -72,4 +73,4 @@ data TwoDMat = TwoDMat { _rowNames  :: [Name]
 
 
 newtype ComparisonMap = ComparisonMap { unComparisonMap :: Map.Map Comparison PValue }
-newtype OutputMap = OutputMap { unOutputMap :: Map.Map T.Text Double }
+newtype OutputMap = OutputMap { unOutputMap :: Map.Map T.Text T.Text }

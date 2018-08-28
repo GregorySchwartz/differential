@@ -22,6 +22,7 @@ module Differential
 import           Data.Int (Int32)
 import           Data.List
 import           Data.Semigroup
+import           TextShow (showt)
 import qualified Control.Foldl as Fold
 import qualified Control.Lens as L
 import qualified Data.Aeson.Lens as L
@@ -33,6 +34,8 @@ import qualified Data.Sparse.Common as S
 import qualified Data.Text as T
 import qualified Data.Vector.Unboxed as V
 import qualified H.Prelude as H
+import qualified Statistics.Test.KruskalWallis as Stat
+import qualified Statistics.Types as Stat
 
 -- Cabal
 
@@ -55,52 +58,66 @@ differential :: [Double] -> [Double] -> R s PValue
 differential xs ys = [r| suppressWarnings(wilcox.test(xs_hs, ys_hs))$p.value |]
                  >>= (\x -> return . PValue $ ((R.fromSomeSEXP x) :: Double))
 
+-- | Find the p-value of two samples using the Kruskal-Wallis test.
+differentialKW :: [Double] -> [Double] -> PValue
+differentialKW xs ys =
+    maybe (PValue 1) (PValue . Stat.pValue . Stat.testSignificance)
+      $ Stat.kruskalWallisTest [V.fromList xs, V.fromList ys]
+
 -- | For two lists, xs and ys, find the log2 fold change as mean ys / mean xs.
 getLog2Diff :: [Double] -> [Double] -> Log2Diff
 getLog2Diff xs ys = Log2Diff . logBase 2 $ getMean ys / getMean xs
   where
     getMean = Fold.fold Fold.mean
 
--- | Get a comparison.
-getDifferential :: Status -> Status -> [Double] -> [Double] -> R s (Comparison, Log2Diff, PValue)
-getDifferential (Status !s1) (Status !s2) !l1 !l2 = do
-    pVal <- differential l1 l2
-    return (Comparison (s2 <> "/" <> s1), getLog2Diff l1 l2, pVal)
+-- | Get a comparison using the Kruskall-Wallis test.
+getDifferential :: Status
+                -> Status
+                -> [Double]
+                -> [Double]
+                -> (Comparison, Log2Diff, PValue)
+getDifferential (Status !s1) (Status !s2) !l1 !l2 = (comp, diff, pVal)
+  where
+    pVal = differentialKW l1 l2
+    diff = getLog2Diff l1 l2
+    comp = Comparison (s2 <> "/" <> s1)
 
 -- | Get all comparisons of a Name.
-getNameDifferentials :: Map.Map Status (Seq.Seq Double) -> R s ComparisonMap
-getNameDifferentials m = do
-    let comparisons = pairs . Map.keys $ m
-        comp (!s1, !s2) = fmap (\(x, _, z) -> (x, z))
-                        $ getDifferential
-                            s1
-                            s2
-                            (F.toList . (Map.!) m $ s1)
-                            (F.toList . (Map.!) m $ s2)
-
-    fmap (ComparisonMap . Map.fromList) . mapM comp $ comparisons
+getNameDifferentials :: Map.Map Status (Seq.Seq Double) -> ComparisonMap
+getNameDifferentials m = ComparisonMap . Map.fromList . fmap comp $ comparisons
+  where
+    comparisons = pairs . Map.keys $ m
+    comp (!s1, !s2) = (\(x, _, z) -> (x, z))
+                    $ getDifferential
+                        s1
+                        s2
+                        (F.toList . (Map.!) m $ s1)
+                        (F.toList . (Map.!) m $ s2)
 
 -- | Convert a ComparisonMap to an OutputMap.
 comparisonMapToOutputMap :: ComparisonMap -> OutputMap
-comparisonMapToOutputMap =
-    OutputMap . Map.map unPValue . Map.mapKeys unComparison . unComparisonMap
+comparisonMapToOutputMap = OutputMap
+                         . Map.map (showt . unPValue)
+                         . Map.mapKeys unComparison
+                         . unComparisonMap
 
 -- | Get all p-values in all relevant combinations.
-getDifferentials :: NameMap -> R s [(Name, OutputMap)]
+getDifferentials :: NameMap -> [(Name, OutputMap)]
 getDifferentials (NameMap nameMap) =
-    sequence
-        . Map.elems
-        . Map.mapWithKey (\ !k -> fmap ((k,) . comparisonMapToOutputMap)
-                                . getNameDifferentials
-                         )
-        $ nameMap
+  Map.elems
+    . Map.mapWithKey (\ !k -> (k,)
+                            . comparisonMapToOutputMap
+                            . getNameDifferentials
+                     )
+    $ nameMap
 
 -- | Get differentials between columns (features) of select rows (observations)
 -- of bs / as, where as and bs are lists of row indices.
 differentialMatrixObsRow :: [Int] -- ^ as
                          -> [Int] -- ^ bs
                          -> S.SpMatrix Double
-                         -> IO [(Log2Diff, PValue)]
+                         -> [(Log2Diff, PValue)]
+                         -- -> [(Log2Diff, PValue, FDR)]
 differentialMatrixObsRow as bs = differentialMatrixFeatRow as bs . S.transpose
 
 -- | Get differentials between columns (observations) of select rows (features)
@@ -108,11 +125,15 @@ differentialMatrixObsRow as bs = differentialMatrixFeatRow as bs . S.transpose
 differentialMatrixFeatRow :: [Int] -- ^ as
                           -> [Int] -- ^ bs
                           -> S.SpMatrix Double
-                          -> IO [(Log2Diff, PValue)]
-differentialMatrixFeatRow as bs = mapM obsToDiff . S.toRowsL
+                          -> [(Log2Diff, PValue)]
+                          -- -> [(Log2Diff, PValue, FDR)]
+differentialMatrixFeatRow as bs = fmap obsToDiff . S.toRowsL
   where
-    obsToDiff vec = R.runRegion
-                  $ fmap (\(_, l, p) -> (l, p))
+    withFDR xs = zipWith (\(!l, !p) fdr -> (l, p, fdr)) xs
+               . getFDR 0.05
+               . fmap snd
+               $ xs
+    obsToDiff vec = (\(_, !l, !p) -> (l, p))
                   . getDifferential
                       (Status "A")
                       (Status "B")

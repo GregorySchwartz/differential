@@ -28,11 +28,6 @@ import qualified Data.ByteString.Lazy.Char8 as BL
 import qualified Data.Text as T
 import qualified Data.Vector as V
 
-import qualified H.Prelude as H
-import qualified Foreign.R as R
-import Language.R.Instance as R
--- import Language.R.Literal as R
-
 -- Local
 import Types
 import Load
@@ -66,30 +61,24 @@ main = do
              $ (CSV.decodeByName contents :: Either String (CSV.Header, V.Vector (Map.Map T.Text T.Text)))
         entities = fmap (toEntity nameCol' statusCol' valueCol') rows
         nameMap  = getNameMap entities
-
-    R.withEmbeddedR R.defaultConfig $ R.runRegion $ do
-        outputMaps <- getDifferentials nameMap
-
-        let comparisons = Set.toList
-                        . Set.fromList
-                        . concatMap (Map.keys . unOutputMap . snd)
-                        $ outputMaps
-            outputHeader = V.fromList
-                         $ [B.pack . T.unpack . unNameCol $ nameCol']
-                        <> fmap (B.pack . T.unpack) comparisons
-            outputBody   =
-                fmap ( (\ m -> foldl'
-                                (\acc x -> Map.insertWith (flip const) x "" acc)
-                                m
-                                comparisons
-                       )
-                     . (\ (!n, !m) -> Map.insert (unNameCol nameCol') (unName n)
-                                  . Map.map showt
-                                  . unOutputMap
-                                  $ m
-                       )
-                     )
-                         $ outputMaps
-        H.io . BL.putStrLn . CSV.encodeByName outputHeader $ outputBody
-
-    return ()
+        outputMaps = getDifferentials nameMap
+        comparisons = Set.toList
+                    . Set.fromList
+                    . concatMap (Map.keys . unOutputMap . snd)
+                    $ outputMaps
+        outputHeader = V.fromList
+                      $ [B.pack . T.unpack . unNameCol $ nameCol']
+                    <> fmap (B.pack . T.unpack) comparisons
+        outputBody   =
+            fmap ( (\ m -> foldl'
+                            (\acc x -> Map.insertWith (flip const) x "" acc)
+                            m
+                            comparisons
+                    )
+                  . (\ (!n, !m) -> Map.insert (unNameCol nameCol') (unName n)
+                                . unOutputMap
+                                $ m
+                    )
+                  )
+                      $ outputMaps
+    BL.putStrLn . CSV.encodeByName outputHeader $ outputBody
