@@ -65,13 +65,17 @@ toInt32 x = fromIntegral x :: Int32
 
 -- | Convert p-values to FDR using the Benjamini-Hochberg procedure.
 getFDR :: Double -> [PValue] -> [FDR]
-getFDR alpha xs = fmap snd
-                . sortBy (compare `on` fst)
-                . fmap (\(!r, (!o, _)) -> (o, getFDR r))
-                . zip [1..]
-                . sortBy (compare `on` snd)
-                . zip [1..]
-                $ xs
+getFDR alpha xs =
+  fmap snd
+    . sortBy (compare `on` fst)
+    . fmap (\(!r, (!o, _)) -> (o, getFDR r))
+    . drop 1 -- Get rid of starting value
+    . scanl -- Handle ties
+        (\(!r, a@(_, !prev)) !x -> if snd x == prev then (r, a) else (r + 1, a))
+        (0, (-1, PValue (-1)))
+    . sortBy (compare `on` snd)
+    . zip ([1..] :: [Int])
+    $ xs
   where
     m = genericLength xs
     getFDR rank = FDR $ alpha * (rank / m)
