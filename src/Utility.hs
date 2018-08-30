@@ -71,7 +71,7 @@ getFDR alpha xs =
     . fmap (\(!r, (!o, _)) -> (o, getFDR r))
     . drop 1 -- Get rid of starting value
     . scanl -- Handle ties
-        (\(!r, a@(_, !prev)) !x -> if snd x == prev then (r, a) else (r + 1, a))
+        (\(!r, (_, !prev)) !x -> if snd x == prev then (r, x) else (r + 1, x))
         (0, (-1, PValue (-1)))
     . sortBy (compare `on` snd)
     . zip ([1..] :: [Int])

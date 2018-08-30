@@ -50,22 +50,28 @@ plotDiff valCut pCut vals ps = do
     |]
 
 -- | Plot the difference between groups for all features. Here, Name refers
--- to the feature while Status refers to the differential group.
-plotSingleDiff :: [Entity] -> R.R s (R.SomeSEXP s)
-plotSingleDiff vals = do
+-- to the feature while Status refers to the differential group. Choose whether
+-- to normalize by the maximum value for a name.
+plotSingleDiff :: Bool -> [Entity] -> R.R s (R.SomeSEXP s)
+plotSingleDiff normalizeBool vals = do
     let jsonR = B.unpack $ A.encode vals
+        normalize = if normalizeBool then 1 else 0 :: Double
 
     [r| suppressMessages(library(ggplot2))
+        suppressMessages(library(plyr))
         suppressMessages(library(cowplot))
         suppressMessages(library(jsonlite))
         suppressMessages(library(RColorBrewer))
 
         df = fromJSON(jsonR_hs)
 
+        if(normalize_hs) {
+          df = ddply(df, "name", transform, value = value / max(value))
+        }
+
         p = ggplot(df, aes(x = name, y = value, fill = status)) +
                 geom_violin(alpha = 0.5, draw_quantiles = c(0.25, 0.5, 0.75), scale = "width") +
                 scale_fill_brewer(palette = "Set1") +
-                ylab("Abundance") +
                 xlab("Feature") +
                 theme_classic() +
                 theme( axis.text = element_text(color = "black")
@@ -74,6 +80,12 @@ plotSingleDiff vals = do
                     , axis.ticks.y = element_line(color = "black")
                     , axis.text.x = element_text(angle=315, hjust=0)
                     )
+
+        if(normalize_hs) {
+          p = p + ylab("Normalized abundance")
+        } else {
+          p = p + ylab("Abundance")
+        }
 
         return(p)
     |]
