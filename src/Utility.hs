@@ -18,6 +18,7 @@ module Utility
 
 import Data.Function (on)
 import Data.List (sortBy, genericLength)
+import Data.Maybe (catMaybes)
 import Data.Int (Int32)
 import Language.R.Instance as R
 import Language.R.Literal as R
@@ -64,18 +65,20 @@ toInt32 :: Int -> Int32
 toInt32 x = fromIntegral x :: Int32
 
 -- | Convert p-values to FDR using the Benjamini-Hochberg procedure.
-getFDR :: Double -> [PValue] -> [FDR]
+getFDR :: Double -> [Maybe PValue] -> [Maybe FDR]
 getFDR alpha xs =
   fmap snd
     . sortBy (compare `on` fst)
-    . fmap (\(!r, (!o, _)) -> (o, getFDR r))
+    . fmap (\(!r, (!o, !p)) -> (o, getFDR r p))
     . drop 1 -- Get rid of starting value
-    . scanl -- Handle ties
-        (\(!r, (_, !prev)) !x -> if snd x == prev then (r, x) else (r + 1, x))
-        (0, (-1, PValue (-1)))
+    . scanl scanFunc (0, (-1, Nothing))
     . sortBy (compare `on` snd)
     . zip ([1..] :: [Int])
     $ xs
   where
-    m = genericLength xs
-    getFDR rank = FDR $ alpha * (rank / m)
+    m = genericLength . catMaybes $ xs
+    scanFunc (!r, (_, !prev)) x@(_, Nothing) = (r, x)
+    scanFunc (!r, (_, !prev)) !x =
+      if snd x == prev then (r, x) else (r + 1, x) -- Handle ties
+    getFDR _ Nothing     = Nothing
+    getFDR rank (Just _) = Just . FDR $ alpha * (rank / m)

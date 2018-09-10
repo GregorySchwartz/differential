@@ -19,6 +19,7 @@ module Differential
     ) where
 
 -- Standard
+import           Control.Monad (guard)
 import           Data.Int (Int32)
 import           Data.List
 import           Data.Semigroup
@@ -28,6 +29,7 @@ import qualified Control.Lens as L
 import qualified Data.Aeson.Lens as L
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import qualified Data.Scientific as Scientific
 import qualified Data.Sequence as Seq
 import qualified Data.Sparse.Common as S
@@ -54,15 +56,16 @@ pairs :: [a] -> [(a, a)]
 pairs l = [(x,y) | (x:ys) <- tails l, y <- ys]
 
 -- | Find the p-value of two samples.
-differential :: [Double] -> [Double] -> R s PValue
+differential :: [Double] -> [Double] -> R s (Maybe PValue)
 differential xs ys = [r| suppressWarnings(wilcox.test(xs_hs, ys_hs))$p.value |]
-                 >>= (\x -> return . PValue $ ((R.fromSomeSEXP x) :: Double))
+                 >>= (\x -> return . Just . PValue $ ((R.fromSomeSEXP x) :: Double))
 
 -- | Find the p-value of two samples using the Kruskal-Wallis test.
-differentialKW :: [Double] -> [Double] -> PValue
-differentialKW xs ys =
-    maybe (PValue 1) (PValue . Stat.pValue . Stat.testSignificance)
-      $ Stat.kruskalWallisTest [V.fromList xs, V.fromList ys]
+differentialKW :: [Double] -> [Double] -> Maybe PValue
+differentialKW xs ys = do
+  guard ((> 1) . Set.size . Set.fromList $ xs <> ys) -- Ensure not everything is the same rank
+  res <- Stat.kruskalWallisTest [V.fromList xs, V.fromList ys]
+  return . PValue . Stat.pValue . Stat.testSignificance $ res
 
 -- | For two lists, xs and ys, find the log2 fold change as mean ys / mean xs.
 getLog2Diff :: [Double] -> [Double] -> Log2Diff
@@ -70,12 +73,12 @@ getLog2Diff xs ys = Log2Diff . logBase 2 $ getMean ys / getMean xs
   where
     getMean = Fold.fold Fold.mean
 
--- | Get a comparison using the Kruskall-Wallis test.
+-- | Get a comparison using the Kruskal-Wallis test.
 getDifferential :: Status
                 -> Status
                 -> [Double]
                 -> [Double]
-                -> (Comparison, Log2Diff, PValue)
+                -> (Comparison, Log2Diff, Maybe PValue)
 getDifferential (Status !s1) (Status !s2) !l1 !l2 = (comp, diff, pVal)
   where
     pVal = differentialKW l1 l2
@@ -97,7 +100,7 @@ getNameDifferentials m = ComparisonMap . Map.fromList . fmap comp $ comparisons
 -- | Convert a ComparisonMap to an OutputMap.
 comparisonMapToOutputMap :: ComparisonMap -> OutputMap
 comparisonMapToOutputMap = OutputMap
-                         . Map.map (showt . unPValue)
+                         . Map.map (maybe "NA" (showt . unPValue))
                          . Map.mapKeys unComparison
                          . unComparisonMap
 
@@ -116,7 +119,7 @@ getDifferentials (NameMap nameMap) =
 differentialMatrixObsRow :: [Int] -- ^ as
                          -> [Int] -- ^ bs
                          -> S.SpMatrix Double
-                         -> [(Log2Diff, PValue, FDR)]
+                         -> [(Log2Diff, Maybe PValue, Maybe FDR)]
 differentialMatrixObsRow as bs = differentialMatrixFeatRow as bs . S.transpose
 
 -- | Get differentials between columns (observations) of select rows (features)
@@ -124,7 +127,7 @@ differentialMatrixObsRow as bs = differentialMatrixFeatRow as bs . S.transpose
 differentialMatrixFeatRow :: [Int] -- ^ as
                           -> [Int] -- ^ bs
                           -> S.SpMatrix Double
-                          -> [(Log2Diff, PValue, FDR)]
+                          -> [(Log2Diff, Maybe PValue, Maybe FDR)]
 differentialMatrixFeatRow as bs = withFDR . fmap obsToDiff . S.toRowsL
   where
     withFDR xs = zipWith (\(!l, !p) fdr -> (l, p, fdr)) xs

@@ -72,5 +72,5 @@ data TwoDMat = TwoDMat { _rowNames  :: [Name]
                        }
 
 
-newtype ComparisonMap = ComparisonMap { unComparisonMap :: Map.Map Comparison PValue }
+newtype ComparisonMap = ComparisonMap { unComparisonMap :: Map.Map Comparison (Maybe PValue) }
 newtype OutputMap = OutputMap { unOutputMap :: Map.Map T.Text T.Text }
