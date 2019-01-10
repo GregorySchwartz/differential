@@ -1,6 +1,8 @@
 #+TITLE: differential
 #+AUTHOR: Gregory W. Schwartz
 
+See [[https://github.com/GregorySchwartz/differential]] for latest version.
+
 * Description
 
 =differential= is a simple program and library for basic differential expression
