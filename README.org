@@ -14,6 +14,7 @@ library includes additional methods of finding differential expression.
 * Documentation
 
 #+HEADER: :results verbatim
+#+HEADER: :exports both
 #+BEGIN_SRC sh
 differential -h
 #+END_SRC
