@@ -9,6 +9,8 @@ significance. Expects an input =CSV= file with names (genes), statuses (e.g.
 control vs. disease), and value for that name in that status (abundance). The
 library includes additional methods of finding differential expression.
 
+* Documentation
+
 #+HEADER: :results verbatim
 #+BEGIN_SRC sh
 differential -h
