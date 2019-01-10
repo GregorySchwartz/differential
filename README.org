@@ -1,0 +1,32 @@
+#+TITLE: differential
+#+AUTHOR: Gregory W. Schwartz
+
+* Description
+
+=differential= is a simple program and library for basic differential expression
+analyses. The program finds the log2 fold change with Kruskal Wallis
+significance. Expects an input =CSV= file with names (genes), statuses (e.g.
+control vs. disease), and value for that name in that status (abundance). The
+library includes additional methods of finding differential expression.
+
+#+HEADER: :results verbatim
+#+BEGIN_SRC sh
+differential -h
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+differential, Gregory W. Schwartz. Finds out whether an entity comes from
+different distributions (statuses).
+
+Usage: differential [--nameCol TEXT] [--statusCol TEXT] [--valueCol TEXT]
+
+Available options:
+  -h,--help                Show this help text
+  --nameCol TEXT           ([name] | COLUMN) The column containing the names of
+                           the entities.
+  --statusCol TEXT         ([status] | COLUMN) The column containing the
+                           statuses of the entities.
+  --valueCol TEXT          ([value] | COLUMN) The column containing the values
+                           of the entities.
+#+end_example
