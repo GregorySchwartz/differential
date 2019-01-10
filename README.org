@@ -20,6 +20,7 @@ differential -h
 #+END_SRC
 
 #+RESULTS:
+#+begin_example
 differential, Gregory W. Schwartz. Finds out whether an entity comes from
 different distributions (statuses).
 
@@ -33,3 +34,4 @@ Available options:
                            statuses of the entities.
   --valueCol TEXT          ([value] | COLUMN) The column containing the values
                            of the entities.
+#+end_example
