@@ -1,13 +1,13 @@
 name:                differential
-version:             0.1.1.0
+version:             0.1.2.0
 synopsis:            Finds out whether an entity comes from different distributions (statuses).
 description:         Uses statistical tests to find whether an entity comes from one or two distributions.
 homepage:            http://github.com/GregorySchwartz/differential#readme
 license:             GPL-3
 license-file:        LICENSE
 author:              Gregory W. Schwartz
-maintainer:          gsch@mail.med.upenn.edu
-copyright:           Copyright: (c) 2018 Gregory W. Schwartz
+maintainer:          gsch@pennmedicine.upenn.edu
+copyright:           Copyright: (c) 2019 Gregory W. Schwartz
 category:            Bioinformatics
 build-type:          Simple
 -- extra-source-files:

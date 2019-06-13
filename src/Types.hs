@@ -41,6 +41,7 @@ newtype FDR = FDR
     { unFDR :: Double
     } deriving (Eq,Ord,Read,Show,Generic)
 newtype Name       = Name { unName :: T.Text } deriving (Eq, Ord, Read, Show, A.ToJSON,Generic)
+newtype Id         = Id { unId :: T.Text } deriving (Eq, Ord, Read, Show, A.ToJSON,Generic)
 newtype Status = Status
     { unStatus :: T.Text
     } deriving (Eq,Ord,Read,Show, A.ToJSON)
@@ -52,10 +53,12 @@ instance NFData Log2Diff
 instance NFData PValue
 instance NFData FDR
 instance NFData Name
+instance NFData Id
 
 -- Advanced
 data Entity = Entity { _name   :: Name
                      , _status :: Status
+                     , _id     :: Id
                      , _value  :: Double
                      }
               deriving (Read, Show, Generic)

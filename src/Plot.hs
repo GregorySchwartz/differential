@@ -51,7 +51,8 @@ plotDiff valCut pCut vals ps = do
 
 -- | Plot the difference between groups for all features. Here, Name refers
 -- to the feature while Status refers to the differential group. Choose whether
--- to normalize by the maximum value for a name.
+-- to normalize by the maximum value for a name. Returns a list where the first
+-- entry is the plot and the second entry is a data frame of the values.
 plotSingleDiff :: Bool -> [Entity] -> R.R s (R.SomeSEXP s)
 plotSingleDiff normalizeBool vals = do
     let jsonR = B.unpack $ A.encode vals
@@ -87,5 +88,5 @@ plotSingleDiff normalizeBool vals = do
           p = p + ylab("Abundance")
         }
 
-        return(p)
+        return(list(p, df))
     |]

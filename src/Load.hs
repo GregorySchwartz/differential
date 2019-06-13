@@ -6,6 +6,7 @@ Collects the functions pertaining to loading the input data.
 
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Load
     ( toEntity
@@ -32,6 +33,7 @@ toEntity (NameCol nameCol) (StatusCol statusCol) (ValueCol valueCol) m =
     Entity { _name   = Name . lookupWithErr nameCol $ m
            , _status = Status . lookupWithErr statusCol $ m
            , _value  = either error fst . T.double . lookupWithErr valueCol $ m
+           , _id = Id ""
            }
   where
     lookupWithErr k =
