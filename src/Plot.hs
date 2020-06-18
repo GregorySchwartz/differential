@@ -18,6 +18,7 @@ module Plot
 -- Cabal
 import qualified Data.Aeson as A
 import qualified Data.ByteString.Lazy.Char8 as B
+import qualified Data.Text as T
 
 import Language.R.QQ (r)
 import qualified Foreign.R.Internal as R
@@ -55,8 +56,10 @@ plotDiff valCut pCut vals ps = do
 -- entry is the plot and the second entry is a data frame of the values.
 plotSingleDiff :: Bool -> [Entity] -> R.R s (R.SomeSEXP s)
 plotSingleDiff normalizeBool vals = do
-    let jsonR = B.unpack $ A.encode vals
-        normalize = if normalizeBool then 1 else 0 :: Double
+    let normalize = if normalizeBool then 1 else 0 :: Double
+        names = fmap (T.unpack . unName . _name) vals
+        statuses = fmap (T.unpack . unStatus . _status) vals
+        values = fmap _value vals
 
     [r| suppressMessages(library(ggplot2))
         suppressMessages(library(plyr))
@@ -64,7 +67,7 @@ plotSingleDiff normalizeBool vals = do
         suppressMessages(library(jsonlite))
         suppressMessages(library(RColorBrewer))
 
-        df = fromJSON(jsonR_hs)
+        df = data.frame(name = names_hs, value = values_hs, status = statuses_hs)
 
         if(normalize_hs) {
           df = ddply(df, "name", transform, value = value / max(value))

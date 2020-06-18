@@ -1,5 +1,5 @@
 name:                differential
-version:             0.1.2.0
+version:             0.1.2.1
 synopsis:            Finds out whether an entity comes from different distributions (statuses).
 description:         Uses statistical tests to find whether an entity comes from one or two distributions.
 homepage:            http://github.com/GregorySchwartz/differential#readme
