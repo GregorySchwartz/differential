@@ -54,9 +54,10 @@ plotDiff valCut pCut vals ps = do
 -- to the feature while Status refers to the differential group. Choose whether
 -- to normalize by the maximum value for a name. Returns a list where the first
 -- entry is the plot and the second entry is a data frame of the values.
-plotSingleDiff :: Bool -> [Entity] -> R.R s (R.SomeSEXP s)
-plotSingleDiff normalizeBool vals = do
+plotSingleDiff :: Bool -> Bool -> [Entity] -> R.R s (R.SomeSEXP s)
+plotSingleDiff normalizeBool violin vals = do
     let normalize = if normalizeBool then 1 else 0 :: Double
+        violinFlag = if violin then 1 else 0 :: Double
         names = fmap (T.unpack . unName . _name) vals
         statuses = fmap (T.unpack . unStatus . _status) vals
         values = fmap _value vals
@@ -74,7 +75,6 @@ plotSingleDiff normalizeBool vals = do
         }
 
         p = ggplot(df, aes(x = name, y = value, fill = status)) +
-                geom_violin(alpha = 0.5, draw_quantiles = c(0.25, 0.5, 0.75), scale = "width") +
                 scale_fill_brewer(palette = "Set1") +
                 xlab("Feature") +
                 theme_classic() +
@@ -84,6 +84,12 @@ plotSingleDiff normalizeBool vals = do
                     , axis.ticks.y = element_line(color = "black")
                     , axis.text.x = element_text(angle=315, hjust=0)
                     )
+
+        if(violinFlag_hs) {
+          p = p + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75), scale = "width")
+        } else {
+          p = p + geom_boxplot()
+        }
 
         if(normalize_hs) {
           p = p + ylab("Normalized abundance")
