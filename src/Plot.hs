@@ -54,10 +54,11 @@ plotDiff valCut pCut vals ps = do
 -- to the feature while Status refers to the differential group. Choose whether
 -- to normalize by the maximum value for a name. Returns a list where the first
 -- entry is the plot and the second entry is a data frame of the values.
-plotSingleDiff :: Bool -> Bool -> [Entity] -> R.R s (R.SomeSEXP s)
-plotSingleDiff normalizeBool violin vals = do
+plotSingleDiff :: Bool -> Bool -> Bool -> [Entity] -> R.R s (R.SomeSEXP s)
+plotSingleDiff normalizeBool violin noOutlier vals = do
     let normalize = if normalizeBool then 1 else 0 :: Double
         violinFlag = if violin then 1 else 0 :: Double
+        noOutlierFlag = if noOutlier then 1 else 0 :: Double
         names = fmap (T.unpack . unName . _name) vals
         statuses = fmap (T.unpack . unStatus . _status) vals
         values = fmap _value vals
@@ -74,8 +75,14 @@ plotSingleDiff normalizeBool violin vals = do
           df = ddply(df, "name", transform, value = value / max(value))
         }
 
+        colors = brewer.pal(9, "Set1")
+        pal = colorRampPalette(colors)
+        statuses = sort(unique(df$status))
+        myColors = pal(length(statuses))
+        names(myColors) = statuses
+
         p = ggplot(df, aes(x = name, y = value, fill = status)) +
-                scale_fill_brewer(palette = "Set1") +
+                scale_fill_manual(values=myColors) +
                 xlab("Feature") +
                 theme_classic() +
                 theme( axis.text = element_text(color = "black")
@@ -88,7 +95,11 @@ plotSingleDiff normalizeBool violin vals = do
         if(violinFlag_hs) {
           p = p + geom_violin(draw_quantiles = c(0.25, 0.5, 0.75), scale = "width")
         } else {
-          p = p + geom_boxplot()
+          if(noOutlierFlag_hs) {
+            p = p + geom_boxplot(outlier.shape = NA)
+          } else {
+            p = p + geom_boxplot()
+          }
         }
 
         if(normalize_hs) {
