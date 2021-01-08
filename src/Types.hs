@@ -40,6 +40,9 @@ newtype Log2Diff = Log2Diff
 newtype FDR = FDR
     { unFDR :: Double
     } deriving (Eq,Ord,Read,Show,Generic)
+newtype QValue = QValue
+    { unQValue :: Double
+    } deriving (Eq,Ord,Read,Show,Generic)
 newtype Name       = Name { unName :: T.Text } deriving (Eq, Ord, Read, Show, A.ToJSON,Generic)
 newtype Id         = Id { unId :: T.Text } deriving (Eq, Ord, Read, Show, A.ToJSON,Generic)
 newtype Status = Status
@@ -51,6 +54,7 @@ newtype RMat s     = RMat { unRMat :: R.SomeSEXP s }
 
 instance NFData Log2Diff
 instance NFData PValue
+instance NFData QValue
 instance NFData FDR
 instance NFData Name
 instance NFData Id

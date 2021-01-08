@@ -119,7 +119,7 @@ getDifferentials (NameMap nameMap) =
 differentialMatrixObsRow :: [Int] -- ^ as
                          -> [Int] -- ^ bs
                          -> S.SpMatrix Double
-                         -> [(Log2Diff, Maybe PValue, Maybe FDR)]
+                         -> [(Log2Diff, Maybe PValue, Maybe FDR, Maybe QValue)]
 differentialMatrixObsRow as bs = differentialMatrixFeatRow as bs . S.transpose
 
 -- | Get differentials between columns (observations) of select rows (features)
@@ -127,10 +127,10 @@ differentialMatrixObsRow as bs = differentialMatrixFeatRow as bs . S.transpose
 differentialMatrixFeatRow :: [Int] -- ^ as
                           -> [Int] -- ^ bs
                           -> S.SpMatrix Double
-                          -> [(Log2Diff, Maybe PValue, Maybe FDR)]
+                          -> [(Log2Diff, Maybe PValue, Maybe FDR, Maybe QValue)]
 differentialMatrixFeatRow as bs = withFDR . fmap obsToDiff . S.toRowsL
   where
-    withFDR xs = zipWith (\(!l, !p) fdr -> (l, p, fdr)) xs
+    withFDR xs = zipWith (\(!l, !p) (!fdr, !qval) -> (l, p, fdr, qval)) xs
                . getFDR 0.05
                . fmap snd
                $ xs

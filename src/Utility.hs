@@ -65,11 +65,11 @@ toInt32 :: Int -> Int32
 toInt32 x = fromIntegral x :: Int32
 
 -- | Convert p-values to FDR using the Benjamini-Hochberg procedure.
-getFDR :: Double -> [Maybe PValue] -> [Maybe FDR]
+getFDR :: Double -> [Maybe PValue] -> [(Maybe FDR, Maybe QValue)]
 getFDR alpha xs =
   fmap snd
     . sortBy (compare `on` fst)
-    . fmap (\(!r, (!o, !p)) -> (o, getFDR r p))
+    . fmap (\(!r, (!o, !p)) -> (o, (getFDRCritical r p, getQValue r p)))
     . drop 1 -- Get rid of starting value
     . scanl scanFunc (0, (-1, Nothing))
     . sortBy (compare `on` snd)
@@ -80,5 +80,7 @@ getFDR alpha xs =
     scanFunc (!r, (_, !prev)) x@(_, Nothing) = (r, x)
     scanFunc (!r, (_, !prev)) !x =
       if snd x == prev then (r, x) else (r + 1, x) -- Handle ties
-    getFDR _ Nothing     = Nothing
-    getFDR rank (Just _) = Just . FDR $ alpha * (rank / m)
+    getFDRCritical _ Nothing     = Nothing
+    getFDRCritical rank (Just _) = Just . FDR $ alpha * (rank / m)
+    getQValue _ Nothing     = Nothing
+    getQValue rank (Just (PValue p)) = Just . QValue $ p * (m / rank)
