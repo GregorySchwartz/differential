@@ -83,4 +83,4 @@ getFDR alpha xs =
     getFDRCritical _ Nothing     = Nothing
     getFDRCritical rank (Just _) = Just . FDR $ alpha * (rank / m)
     getQValue _ Nothing     = Nothing
-    getQValue rank (Just (PValue p)) = Just . QValue $ p * (m / rank)
+    getQValue rank (Just (PValue p)) = Just . QValue . min 1 $ p * (m / rank)
